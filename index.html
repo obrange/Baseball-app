@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <!-- 禁止縮放，確保手機點擊時的手感像真實 App -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>棒球即時紀錄系統 - 原型測試</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        .container { padding: 15px; }
+        .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h3 { margin-top: 0; color: #1a365d; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 登入畫面樣式 */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f0f2f5; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 80%; max-width: 320px; text-align: center; }
+        .login-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        .btn-login { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        
+        /* 九宮格好球帶 */
+        .strike-zone { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 240px; height: 240px; margin: 15px auto; background: #cbd5e1; padding: 5px; border-radius: 8px; }
+        .zone-cell { background: #fff; border: 2px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: #64748b; cursor: pointer; border-radius: 4px; user-select: none; }
+        .zone-cell:active { background: #3b82f6; color: white; }
+        /* 唯讀模式的樣式 (球員登入時套用) */
+        .readonly .zone-cell { background: #f1f5f9; cursor: not-allowed; color: #cbd5e1; }
+        .readonly .zone-cell:active { background: #f1f5f9; color: #cbd5e1; }
+
+        /* 快選按鈕 */
+        .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 8px; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .btn:active { background: #1d4ed8; }
+        .btn-orange { background: #f97316; }
+        .btn-orange:active { background: #ea580c; }
+        .btn-logout { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+
+        /* 紀錄顯示 */
+        pre { background: #1e293b; color: #38bdf8; padding: 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; margin: 0; }
+        .badge { background: #10b981; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+    <!-- 登入防護罩 -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color: #1a365d; margin-top: 0;">⚾ 球隊系統登入</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">
+                測試教練帳號：coach<br>
+                測試球員帳號：player<br>
+                (密碼皆為 1234)
+            </p>
+            <input type="text" id="username" class="login-input" placeholder="請輸入帳號 (coach 或 player)">
+            <input type="password" id="password" class="login-input" placeholder="請輸入密碼 (1234)">
+            <button class="btn-login" onclick="handleLogin()">登入</button>
+            <p id="login-error" style="color: red; font-size: 14px; display: none; margin-top: 10px;">帳號或密碼錯誤！</p>
+        </div>
+    </div>
+
+    <!-- 系統主畫面 (登入前隱藏) -->
+    <div id="app-content" style="display: none;" class="container">
+        
+        <div class="card">
+            <h3>
+                <span>投手：王小明 <span id="user-role-badge" class="badge">權限</span></span>
+                <button class="btn-logout" onclick="handleLogout()">登出</button>
+            </h3>
+            
+            <p id="instruction-text" style="color: #64748b; font-size: 14px;">請點擊下方好球帶位置，模擬球場紀錄：</p>
+            
+            <!-- 好球帶 -->
+            <div id="strike-zone-container" class="strike-zone">
+                <div class="zone-cell" onclick="recordPitch(1)">1</div>
+                <div class="zone-cell" onclick="recordPitch(2)">2</div>
+                <div class="zone-cell" onclick="recordPitch(3)">3</div>
+                <div class="zone-cell" onclick="recordPitch(4)">4</div>
+                <div class="zone-cell" onclick="recordPitch(5)">5</div>
+                <div class="zone-cell" onclick="recordPitch(6)">6</div>
+                <div class="zone-cell" onclick="recordPitch(7)">7</div>
+                <div class="zone-cell" onclick="recordPitch(8)">8</div>
+                <div class="zone-cell" onclick="recordPitch(9)">9</div>
+            </div>
+        </div>
+
+        <div id="control-panel" class="card">
+            <h3 style="border: none; margin-bottom: 0;">⚙️ 模擬事件快選</h3>
+            <div class="btn-group">
+                <button class="btn btn-orange" onclick="addStat('strikeouts')">＋ 三振 (K)</button>
+                <button class="btn btn-orange" onclick="addStat('walks')">＋ 保送 (BB)</button>
+                <button class="btn btn-orange" onclick="addStat('hitsAllowed')">＋ 被安打 (H)</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="border: none; margin-bottom: 10px;">📊 即時資料庫 JSON</h3>
+            <pre id="json-output">等待讀取資料...</pre>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================
+           1. 帳號權限與登入邏輯
+           ========================================= */
+        // 密碼為 '1234' 的 SHA-256 雜湊碼
+        const HASH_1234 = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";
+
+        const mockDatabase = {
+            "coach": { hash: HASH_1234, role: "Manager", name: "王教練" },
+            "player": { hash: HASH_1234, role: "Player", name: "林選手" }
+        };
+
+        // SHA-256 加密轉換
+        async function hashPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function handleLogin() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
+            const errorMsg = document.getElementById('login-error');
+
+            if (!mockDatabase[user]) {
+                errorMsg.style.display = 'block'; return;
+            }
+
+            const hashedInput = await hashPassword(pass);
+            
+            if (hashedInput === mockDatabase[user].hash) {
+                sessionStorage.setItem('team_app_role', mockDatabase[user].role);
+                sessionStorage.setItem('team_app_name', mockDatabase[user].name);
+                showApp(mockDatabase[user].role, mockDatabase[user].name);
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function handleLogout() {
+            sessionStorage.removeItem('team_app_role');
+            sessionStorage.removeItem('team_app_name');
+            location.reload(); // 重新載入頁面回到登入狀態
+        }
+
+        function showApp(role, name) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            
+            const badge = document.getElementById('user-role-badge');
+            badge.textContent = `${name} (${role})`;
+
+            // 權限控管：如果是球員，鎖定編輯功能
+            if (role === 'Player') {
+                badge.style.background = '#64748b';
+                document.getElementById('instruction-text').textContent = "⚠️ 唯讀模式：您僅能觀看數據，無法編輯紀錄。";
+                document.getElementById('control-panel').style.display = 'none';
+                
+                // 替好球帶加上唯讀樣式，並取消點擊事件
+                const zone = document.getElementById('strike-zone-container');
+                zone.classList.add('readonly');
+                zone.style.pointerEvents = 'none'; 
+            }
+        }
+
+        // 頁面載入時檢查是否已登入
+        window.onload = function() {
+            const savedRole = sessionStorage.getItem('team_app_role');
+            const savedName = sessionStorage.getItem('team_app_name');
+            if (savedRole && savedName) {
+                showApp(savedRole, savedName);
+            }
+            updateUI(); // 初始化顯示 JSON
+        }
+
+        /* =========================================
+           2. 棒球數據紀錄邏輯
+           ========================================= */
+        let pitchingRecord = {
+            "recordId": "pitch-tmp-001",
+            "playerId": "player-001",
+            "gameId": "game-test-2026",
+            "date": new Date().toISOString().split('T')[0],
+            "pitchesThrown": 0,
+            "hitsAllowed": 0,
+            "walks": 0,
+            "strikeouts": 0,
+            "pitchHistory": [] 
+        };
+
+        function updateUI() {
+            document.getElementById('json-output').textContent = JSON.stringify(pitchingRecord, null, 2);
+        }
+
+        function recordPitch(zoneNumber) {
+            pitchingRecord.pitchesThrown += 1;
+            pitchingRecord.pitchHistory.push({
+                "pitchNo": pitchingRecord.pitchesThrown,
+                "zone": zoneNumber,
+                "type": "4-Seam",
+                "velocity": Math.floor(Math.random() * (150 - 135 + 1)) + 135 
+            });
+            updateUI();
+        }
+
+        function addStat(field) {
+            pitchingRecord[field] += 1;
+            updateUI();
+        }
+    </script>
+</body>
+</html>
